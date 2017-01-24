@@ -1,36 +1,52 @@
-//     _____________________________________________
-//    |                                             |
-//    |          Configurer module HC-06            |
-//    |                                             |
-//    |              Créé  par Kioub                |
-//    |               Le 08/01/2017                 |
-//    |_____________________________________________|
+//                           _____________________________________________
+//                          |                                             |
+//                          |          Configure HC-06 module             |
+//                          |                                             |
+//                          |            Author : Kioub                  |
+//                          |            Create : 08/01/2017              |
+//                          |            Update : 24/01/2017              |
+//                          |_____________________________________________|
+//    ______________________________________________________________________________________________   
+//   |                                                                                             |
+//   |      Configure the HC-06 Bluetooth module using an Arduino UNO and your serial mobitor.     |
+//   |      The sketch find module speed comunication and displays the firmware version.           |
+//   |      The Bluetooth module name, PIN  and speed communication can be changed.                |
+//   |_____________________________________________________________________________________________|
+//    ______________________________________________________________________________________________ 
+//   |                                                                                              |
+//   |                             ____________        ____________                                 |
+//   |                            |          Rx|-3,3V-|11          |                                |
+//   |                            |  HC-06   Tx|------|10  Arduino |                                |
+//   |                            |         gnd|------|gnd         |                                |
+//   |                            |_________ 5V|------|5V__________|                                |
+//   |______________________________________________________________________________________________|
+
+
+//________________________________________________________________________________________________________________________________________________________________________________________________
 
 #include <SoftwareSerial.h>
-SoftwareSerial mySerial(10, 11);  // RX, TX
-unsigned long vitesseDispo[] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
-String nom = "";
-int vitesse = 0;
+SoftwareSerial mySerial(10, 11);  // RX, TX (arduino side)
+unsigned long baud_list[] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
+String name = "";
+int baud = 0;
 String firmware = "";
-String codepin = "";
+String pin = "";
 
 //___________ Setup ______________________________________________________________________________________________________________________________________________________________________________
 
 void setup() {
-  int compteur = 0;
-
   Serial.begin(9600);
   Serial.print("Le programme essaye de se connecter au module... ");
 
-  for (compteur = 0; compteur < 8; compteur++) {
-    mySerial.begin(vitesseDispo[compteur]);
+  for (int baud_nb = 0; baud_nb < 8; baud_nb++) {
+    mySerial.begin(baud_list[baud_nb]);
     mySerial.print("AT");
     if (readModule() == "OK") {
-      vitesse = compteur;
+      baud = baud_nb;
       Serial.println("connexion reussie.");
       Serial.println();
       Serial.print("vitesse de communication : ");
-      Serial.print(vitesseDispo[compteur]);
+      Serial.print(baud_list[baud_nb]);
       Serial.println(" bites par seconde");
       Serial.print("Version du firmware : ");
       mySerial.print("AT+VERSION");
@@ -39,7 +55,7 @@ void setup() {
       Serial.println();
       break;
     }
-    else if (compteur == 7){
+    else if (baud_nb == 7){
       Serial.println("impossible d'etablir la connexion.");
       Serial.println();
       Serial.println("Veuillez controler que le module est correctement connecte");
@@ -89,56 +105,57 @@ void loop() {
   }
 }
 
-//___________ Fonction afficher les informations connues du module _______________________________________________________________________________________________________________________________
+//___________ Display known module information ___________________________________________________________________________________________________________________________________________________
 
 void infoModule() {
   Serial.print("Version du firmware : ");
   Serial.println(firmware);
   Serial.print("Vitesse de communication : ");
-  Serial.print(vitesseDispo[vitesse]);
+  Serial.print(baud_list[baud]);
   Serial.println(" bites par seconde");
-  if (nom != ""){
-    Serial.println("Nom : "+nom);  
+  if (name != ""){
+    Serial.println("Nom : "+name);  
   }
-  if (codepin != ""){
-    Serial.println("Code PIN : "+codepin);
+  if (pin != ""){
+    Serial.println("Code PIN : "+pin);
   }
   Serial.println();
 }
 
-//___________ Fonction changer la vitesse de communication _______________________________________________________________________________________________________________________________________
+//___________ Change HC-06 speed communication ___________________________________________________________________________________________________________________________________________________
 
 void baudModule() {
-  int numeroBaud;
-  String texte = "" ;
+  int user_choice;
   Serial.println("Entrer le nombre correspondant a la vitesse souhaitee");
-  Serial.println("    1 -   1200 bites par seconde");
-  Serial.println("    2 -   2400 bites par seconde");
-  Serial.println("    3 -   4800 bites par seconde");
-  Serial.println("    4 -   9600 bites par seconde");
-  Serial.println("    5 -  19200 bites par seconde");
-  Serial.println("    6 -  38400 bites par seconde");
-  Serial.println("    7 -  57600 bites par seconde");
-  Serial.println("    8 - 115200 bites par seconde");
-  Serial.println("");  
+  for (int baud_nb=0 ; baud_nb < 8 ; baud_nb++) {
+      Serial.print("   ");
+      Serial.print(baud_nb + 1);
+      Serial.print(" - ");
+      Serial.print(baud_list[baud_nb]);
+      Serial.println(" bites par seconde");
+  } 
+  Serial.println("   9 - revenir au menu");  
+  Serial.println();
   
-  Serial.println("Faites votre choix...");
-  while (Serial.available() != 1 ) {
-  }
-  texte = readPC();
-  for (int compteur=1 ; compteur < 9; compteur++) {
-    if (texte==String(compteur)){
-      numeroBaud = compteur-1;     
+  do {
+    Serial.println("Faites votre choix...");
+    while (Serial.available() != 1 ) {
+      }
+    user_choice = Serial.read() - 48;
+  
+    if (user_choice == 9){
+      Serial.println();
+      return;
     }
-  }
-  mySerial.print("AT+BAUD" + texte);
-  delay(500);
-  if (readModule() == ("OK" + String(vitesseDispo[numeroBaud]))){
-    vitesse = numeroBaud;
+  } while ((user_choice < 1) || (user_choice > 8));
+
+  mySerial.print("AT+BAUD" + String(user_choice));
+  if (readModule() == ("OK" + String(baud_list[user_choice-1]))){
+    baud = user_choice-1;
     Serial.print("Le module communique maintenant a la vitesse de : ");
-    Serial.print(vitesseDispo[numeroBaud]);
+    Serial.print(baud_list[user_choice-1]);
     Serial.println(" bites par secondes");
-    mySerial.begin(vitesseDispo[numeroBaud]);
+    mySerial.begin(baud_list[user_choice-1]);
     Serial.println("");
   }
   else {
@@ -147,19 +164,26 @@ void baudModule() {
   }
 }
 
-//___________ Fonction changer le nom du module __________________________________________________________________________________________________________________________________________________
+//___________ Change HC-06 name __________________________________________________________________________________________________________________________________________________________________
 
 void nameModule() {
-  String texte = "" ;
-  Serial.println("Entrer un nouveau nom...");
-  while (Serial.available() != 1 ) {
-  }
-  texte = readPC();
-  mySerial.print("AT+NAME" + texte);
+  String user_choice = "" ;
+  do {
+    Serial.println("Entrer un nouveau nom...");
+    while (Serial.available() != 1 ) {
+    }
+    user_choice = readPC();
+    if (user_choice.length() > 10) {
+      Serial.println("Le nom du module ne doit pas depasser 20 caracteres !");
+      Serial.println();
+    }
+  } while (user_choice.length() > 10);
+
+  mySerial.print("AT+NAME" + user_choice);
   delay(10);
   if (readModule() == "OKsetname"){
-    nom = texte;
-    Serial.println("Le module se nomme maintenant : " + nom);
+    name = user_choice;
+    Serial.println("Le module se nomme maintenant : " + name);
     Serial.println("");
   }
   else {
@@ -168,28 +192,36 @@ void nameModule() {
   }
 }
 
-//___________ Fonction changer le code PIN du module _____________________________________________________________________________________________________________________________________________
+//___________ Change HC-06 PIN ___________________________________________________________________________________________________________________________________________________________________
 
 void pinModule() {
-  String texte = "";
-  Serial.println("Entrer un nouveau code PIN...");
-  while (Serial.available() != 1 ) {
-  }
-  texte = readPC();
-  mySerial.print("AT+PIN" + texte);
+  String user_choice = "";
+  do {
+    Serial.println("Entrer un nouveau code PIN...");
+    while (Serial.available() != 1 ) {
+    }
+    user_choice = readPC();
+
+    if (user_choice.length() != 4 || user_choice.toInt() == 0 && user_choice != "0000") {
+      Serial.println("Le code PIN doit etre compose de 4 chiffres");
+      Serial.println();
+    }
+  } while (user_choice.length() != 4 || user_choice.toInt() == 0 && user_choice != "0000");
+  
+  mySerial.print("AT+PIN" + user_choice);
   delay(10);
   if (readModule() == "OKsetPIN"){
-    codepin = texte;
-    Serial.println("Le code PIN est maintenant : " + codepin);
-    Serial.println("");
+    pin = user_choice;
+    Serial.println("Le code PIN est maintenant : " + pin);
+    Serial.println();
   }
   else {
     Serial.println("Il y a eu une erreur, veuillez recommencer.");
-    Serial.println("");
+    Serial.println();
   }
 }
 
-//___________ Fonction lecture du moniteur serie _________________________________________________________________________________________________________________________________________________
+//___________ Read serial monitor ________________________________________________________________________________________________________________________________________________________________
 
 String readPC() {
   String command = "";
@@ -205,7 +237,7 @@ String readPC() {
   return command;
 }
 
-//___________ Fonction lecture du module HC-06 ___________________________________________________________________________________________________________________________________________________
+//___________ Read HC-06 module __________________________________________________________________________________________________________________________________________________________________
 
 String readModule() {
   String command = "";
@@ -213,7 +245,7 @@ String readModule() {
   }
   delay(1500);
   while (mySerial.available()) {
-    delay(10);
+//    delay(10);
     command += (char)mySerial.read();
   }
 //  Serial.print("readModule : ");
